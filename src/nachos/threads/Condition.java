@@ -60,6 +60,7 @@ public class Condition {
      */
     public Condition(Lock conditionLock) {
 	this.conditionLock = conditionLock;
+
 	waitQueue = new LinkedList<Semaphore>();
     }
 
