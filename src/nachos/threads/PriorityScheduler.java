@@ -179,10 +179,13 @@ public class PriorityScheduler extends Scheduler {
     
     public static void selftest()
     {
-    	//testPriority();
+    	System.out.println("---------- Test 0 ----------");
+    	testPriority();
     	
         KThread[] threads = new KThread[8];
     	
+        System.out.println("---------- Test 1 ----------");
+        
     	for(int i = 0; i < 8; i++)
     	{
     		threads[i] = new KThread(new PriorityTest2(i,i)).setName("thread"+i);
@@ -192,13 +195,50 @@ public class PriorityScheduler extends Scheduler {
     		
     		threads[i].fork();
     	}
-    	/*
+		PriorityScheduler schduler = (PriorityScheduler)(ThreadedKernel.scheduler);
+		
+		int priority = schduler.getThreadState(KThread.currentThread()).getPriority();
+		
+		int Effective = schduler.getThreadState(KThread.currentThread()).getEffectivePriority();
+		
+		System.out.println("Thread main with priority " + String.valueOf(priority) + " effective" + String.valueOf(Effective) + " running");
+	
+    	for(int i = 0; i < 8; i++)
+    	{
+    		threads[i].join();
+    	}
+
+        System.out.println("---------- Test 2 ----------");
+        
+    	for(int i = 7; i >= 0; i--)
+    	{
+    		threads[i] = new KThread(new PriorityTest2(i,i)).setName("thread"+i);
+    		
+    		schduler.getThreadState(threads[i]).setPriority(i);
+    		
+    		threads[i].fork();
+    	}
+    	for(int i = 0; i < 8; i++)
+    	{
+    		threads[i].join();
+    	}
+    	
+        System.out.println("---------- Test 3 ----------");
+        
+    	for(int i = 7; i >= 0; i--)
+    	{
+    		threads[i] = new KThread(new PriorityTest2(i,i)).setName("thread"+i);
+    		
+    		schduler.getThreadState(threads[i]).setPriority(i);
+    		
+    		threads[i].fork();
+    	}
+    	
     	Lock l = new Lock();
     	Condition c = new Condition(l);
     	
         KThread thread2s = new KThread(new PriorityTest1(1,2,l,c)).setName("thread x");
         
-        PriorityScheduler schduler = (PriorityScheduler)(ThreadedKernel.scheduler);
 		schduler.getThreadState(thread2s).setPriority(2);
     	
     	thread2s.fork();
@@ -209,12 +249,12 @@ public class PriorityScheduler extends Scheduler {
     	System.out.println("release the lock");
     	l.release();
     	
-    	//ThreadedKernel.alarm.waitUntil(50000);
-    	*/
     	for(int i = 0; i < 8; i++)
     	{
     		threads[i].join();
     	}
+    	//ThreadedKernel.alarm.waitUntil(50000);
+    	
     	
     }
 
@@ -257,7 +297,11 @@ public class PriorityScheduler extends Scheduler {
 				int priority0 = arg0.getEffectivePriority();
 				int priority1 = arg1.getEffectivePriority();
 				if(priority0 > priority1) return -1;
-				else if(priority0 < priority1) return 1;
+				if(priority0 < priority1) return 1;
+				int num0 = arg0.serialNum;
+				int num1 = arg1.serialNum;
+				if(num0 > num1) return 1;
+				if(num0 < num1) return -1;
 				return 0; //TODO: first come first served
 			}
 	    });
@@ -327,6 +371,7 @@ public class PriorityScheduler extends Scheduler {
 	public boolean transferPriority;
 	public KThread waitedThread;
 	private java.util.PriorityQueue<ThreadState> waitQueue;
+	public int serialNum=0;
     }
 
     /**
@@ -400,6 +445,7 @@ public class PriorityScheduler extends Scheduler {
 	    // implement me
 		waitQueue.waitQueue.add(this);
 		this.selfQueue = waitQueue;
+		this.serialNum = waitQueue.serialNum++;
 		if(waitQueue.transferPriority)
 			getThreadState(waitQueue.waitedThread).setEffectivePriority(this.effective);
 	}
@@ -415,7 +461,7 @@ public class PriorityScheduler extends Scheduler {
 	 * @see	nachos.threads.ThreadQueue#nextThread
 	 */
 	public void acquire(PriorityQueue waitQueue) {
-		waitedQueue.add(waitQueue);
+		if(waitQueue.transferPriority) waitedQueue.add(waitQueue);
 	    waitQueue.waitedThread = this.thread;
 	    this.selfQueue = null;
 	}	
@@ -455,11 +501,11 @@ public class PriorityScheduler extends Scheduler {
     				int priority0 = arg0.getMaxPriority();
     				int priority1 = arg1.getMaxPriority();
     				if(priority0 > priority1) return -1;
-    				else if(priority0 < priority1) return 1;
-    				return 0; //TODO: first come first served
+    				if(priority0 < priority1) return 1;
+    				return 0;
     			}
     	    });
-    
+    public int serialNum=0;
     
     }
 }
