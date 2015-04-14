@@ -35,14 +35,14 @@ public class Condition2 {
      */
     public void sleep() {
 	Lib.assertTrue(conditionLock.isHeldByCurrentThread());
-
-	conditionLock.release();
 	Machine.interrupt().disable();
+	conditionLock.release();
+
 	waitQueue.add(KThread.currentThread());  
 	KThread.sleep();
-	Machine.interrupt().enable();
 	
 	conditionLock.acquire();
+	Machine.interrupt().enable();
     }
 
     /**
@@ -66,8 +66,55 @@ public class Condition2 {
 	Lib.assertTrue(conditionLock.isHeldByCurrentThread());
 	while (!waitQueue.isEmpty())
 	    wake();
+	//Machine.interrupt().enable();
     }
     
     private LinkedList<KThread> waitQueue;
     private Lock conditionLock;
+    private static class Condition2Test implements Runnable {
+    	Condition2Test(Lock lock, Condition2 condition) {
+    	    this.condition = condition;
+            this.lock = lock;
+    	}
+    	
+    	public void run() {
+            lock.acquire();
+
+            System.out.print(KThread.currentThread().getName() + " acquired lock\n");	
+            condition.sleep();
+            System.out.print(KThread.currentThread().getName() + " acquired lock again\n");	
+
+            lock.release();
+            System.out.print(KThread.currentThread().getName() + " released lock \n");	
+    	}
+
+        private Lock lock; 
+        private Condition2 condition; 
+    }
+    public static void selfTest(){
+    	System.out.println("-------- Condition2 Test --------");
+    	Lock conditionLock = new Lock();
+    	Condition2 condition2 = new Condition2(conditionLock);
+    	
+    	KThread[] threads = new KThread[7];
+		for (int i = 0; i < 7; i ++){
+			threads[i] = new KThread(new Condition2Test(conditionLock, condition2)).setName("Thread" + i);
+			threads[i].fork();
+		}
+		
+		KThread.yield();
+		conditionLock.acquire();
+		
+		System.out.print("conditionLock.wake() called\n");
+		condition2.wake();
+		conditionLock.release();
+		threads[0].join();
+		
+		conditionLock.acquire();
+		System.out.print("conditionLock.wakeAll() called\n");
+		condition2.wakeAll();
+		
+		conditionLock.release();
+		threads[threads.length-1].join();
+    }
 }
