@@ -80,13 +80,12 @@ public class Condition2 {
     	
     	public void run() {
             lock.acquire();
-
             System.out.print(KThread.currentThread().getName() + " acquired lock\n");	
+            System.out.print(KThread.currentThread().getName() + " released lock and sleeped\n");
             condition.sleep();
-            System.out.print(KThread.currentThread().getName() + " acquired lock again\n");	
-
+            System.out.print(KThread.currentThread().getName() + " woken and acquired lock again\n");	
             lock.release();
-            System.out.print(KThread.currentThread().getName() + " released lock \n");	
+            System.out.print(KThread.currentThread().getName() + " released lock again\n");	
     	}
 
         private Lock lock; 

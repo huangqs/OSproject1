@@ -61,7 +61,7 @@ public class Alarm {
 	long timeToWake = Machine.timer().getTime() + x;
 	Machine.interrupt().disable();
 	waitQueue.add(new AlarmedThread(KThread.currentThread(), timeToWake));
-	KThread.sleep();
+	KThread.currentThread().sleep();
 	Machine.interrupt().enable();
     }
     
@@ -90,9 +90,15 @@ public class Alarm {
     	}
     	
     	public void run(){
-    		System.out.println(KThread.currentThread().getName() + " alarmed on " + (Machine.timer().getTime() + time));
+    		long time2 = Machine.timer().getTime();
     		ThreadedKernel.alarm.waitUntil(time);
-    		System.out.println(KThread.currentThread().getName() + " woken up at " + Machine.timer().getTime());
+    		System.out.println(KThread.currentThread().getName() + 
+    				" should be woken after " + 
+    				time);
+    		System.out.println(KThread.currentThread().getName() + 
+    				" woken after " + 
+    				(Machine.timer().getTime()-time2));
+    		
     	}
     	
     	private long time;
@@ -103,9 +109,8 @@ public class Alarm {
     	Runnable r = new Runnable() {
     	    public void run() {
                     KThread t[] = new KThread[7];
-
                     for (int i=0; i<7; i++) {
-                         t[i] = new KThread(new AlarmTest(970 + i*970));
+                         t[i] = new KThread(new AlarmTest((970 + i*970) % 2011));
                          t[i].setName("Thread" + i);
                          t[i].fork();
                     }
