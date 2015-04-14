@@ -2,6 +2,7 @@ package nachos.threads;
 
 import nachos.machine.*;
 
+import java.util.LinkedList;
 import java.util.TreeSet;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -95,6 +96,167 @@ public class PriorityScheduler extends Scheduler {
 	Machine.interrupt().restore(intStatus);
 	return true;
     }
+    
+    private static class PriorityTest1 implements Runnable {
+    	PriorityTest1(int i, int j, Lock l, Condition c) {
+    		this.c = c;
+    		this.l = l;
+    		number = i;
+    		priority = j;
+        }
+
+    	public void run() {
+    		
+    		ThreadedKernel.alarm.waitUntil(2000);
+    		System.out.println("wait the lock");
+    		l.acquire();
+    		System.out.println("Thread" + String.valueOf(number) + " with priority " + String.valueOf(priority) + " finished.");
+    		l.release();
+    	}
+        
+    	Condition c;
+    	Lock l;
+    	int priority;
+    	int number;
+    }
+    
+    private static class PriorityTest2 implements Runnable {
+    	PriorityTest2(int i, int j) {
+    		number = i;
+    		priority = j;
+        }
+
+    	public void run() {
+    		
+    		ThreadedKernel.alarm.waitUntil(5000);
+    		
+    		for (int i =0; i < 300000; i++)
+    		{
+    			PriorityScheduler schduler = (PriorityScheduler)(ThreadedKernel.scheduler);
+        		
+    			int priority = schduler.getThreadState(KThread.currentThread()).getPriority();
+    			
+    			int Effective = schduler.getThreadState(KThread.currentThread()).getEffectivePriority();
+    			
+    			if (i % 100000 == 0)  System.out.println("Thread" + String.valueOf(number) + " with priority " + String.valueOf(priority) + " effective" + String.valueOf(Effective) + " running");
+    		}
+    	}
+        
+    	int priority;
+    	int number;
+    }
+    
+    public static void testPriority()
+    {
+    	Lock l = new Lock();
+    	Condition c = new Condition(l);
+    	KThread[] threads = new KThread[8];
+    	
+    	for(int i = 0; i < 8; i++)
+    	{
+    		int t = (int)(Math.random()*6 + 1);
+    		threads[i] = new KThread(new PriorityTest1(i,t,l,c)).setName("thread"+i);
+    		
+    		PriorityScheduler schduler = (PriorityScheduler)(ThreadedKernel.scheduler);
+    		schduler.getThreadState(threads[i]).setPriority(t);
+    		
+    		threads[i].fork();
+    	}
+    	
+    	l.acquire();
+    	System.out.println("get the lock");
+    	ThreadedKernel.alarm.waitUntil(5000);
+    	System.out.println("release the lock");
+    	l.release();
+    	
+    	for(int i = 0; i < 8; i++)
+    	{
+    		threads[i].join();
+    	}
+    }
+    
+    
+    
+    public static void selftest()
+    {
+    	System.out.println("---------- Test 0 ----------");
+    	testPriority();
+    	
+        KThread[] threads = new KThread[8];
+    	
+        System.out.println("---------- Test 1 ----------");
+        
+    	for(int i = 0; i < 8; i++)
+    	{
+    		threads[i] = new KThread(new PriorityTest2(i,i)).setName("thread"+i);
+    		
+    		PriorityScheduler schduler = (PriorityScheduler)(ThreadedKernel.scheduler);
+    		schduler.getThreadState(threads[i]).setPriority(i);
+    		
+    		threads[i].fork();
+    	}
+		PriorityScheduler schduler = (PriorityScheduler)(ThreadedKernel.scheduler);
+		
+		int priority = schduler.getThreadState(KThread.currentThread()).getPriority();
+		
+		int Effective = schduler.getThreadState(KThread.currentThread()).getEffectivePriority();
+		
+		System.out.println("Thread main with priority " + String.valueOf(priority) + " effective" + String.valueOf(Effective) + " running");
+	
+    	for(int i = 0; i < 8; i++)
+    	{
+    		threads[i].join();
+    	}
+
+        System.out.println("---------- Test 2 ----------");
+        
+    	for(int i = 7; i >= 0; i--)
+    	{
+    		threads[i] = new KThread(new PriorityTest2(i,i)).setName("thread"+i);
+    		
+    		schduler.getThreadState(threads[i]).setPriority(i);
+    		
+    		threads[i].fork();
+    	}
+    	for(int i = 0; i < 8; i++)
+    	{
+    		threads[i].join();
+    	}
+    	
+        System.out.println("---------- Test 3 ----------");
+        
+    	for(int i = 7; i >= 0; i--)
+    	{
+    		threads[i] = new KThread(new PriorityTest2(i,i)).setName("thread"+i);
+    		
+    		schduler.getThreadState(threads[i]).setPriority(i);
+    		
+    		threads[i].fork();
+    	}
+    	
+    	Lock l = new Lock();
+    	Condition c = new Condition(l);
+    	
+        KThread thread2s = new KThread(new PriorityTest1(1,2,l,c)).setName("thread x");
+        
+		schduler.getThreadState(thread2s).setPriority(2);
+    	
+    	thread2s.fork();
+    	
+    	l.acquire();
+    	System.out.println("get the lock");
+    	ThreadedKernel.alarm.waitUntil(5000);
+    	System.out.println("release the lock");
+    	l.release();
+    	
+    	for(int i = 0; i < 8; i++)
+    	{
+    		threads[i].join();
+    	}
+    	//ThreadedKernel.alarm.waitUntil(50000);
+    	
+    	
+    }
 
     /**
      * The default priority for a new thread. Do not change this value.
@@ -128,6 +290,21 @@ public class PriorityScheduler extends Scheduler {
     protected class PriorityQueue extends ThreadQueue {
 	PriorityQueue(boolean transferPriority) {
 	    this.transferPriority = transferPriority;
+	    this.waitQueue = new java.util.PriorityQueue<ThreadState>(new java.util.Comparator<ThreadState>()
+	    {
+			@Override
+			public int compare(ThreadState arg0, ThreadState arg1) {
+				int priority0 = arg0.getEffectivePriority();
+				int priority1 = arg1.getEffectivePriority();
+				if(priority0 > priority1) return -1;
+				if(priority0 < priority1) return 1;
+				int num0 = arg0.serialNum;
+				int num1 = arg1.serialNum;
+				if(num0 > num1) return 1;
+				if(num0 < num1) return -1;
+				return 0; //TODO: first come first served
+			}
+	    });
 	}
 
 	public void waitForAccess(KThread thread) {
@@ -143,7 +320,25 @@ public class PriorityScheduler extends Scheduler {
 	public KThread nextThread() {
 	    Lib.assertTrue(Machine.interrupt().disabled());
 	    // implement me
-	    return null;
+	    /*System.out.println("Next Thread");
+	    for(ThreadState s:this.waitQueue)
+	    {
+	    	System.out.println(s.thread.getName());
+	    	System.out.println(s.priority);
+	    	System.out.println(s.effective);
+	    }*/
+	    if(this.transferPriority)
+	    {
+	    	getThreadState(this.waitedThread).waitedQueue.remove(this);
+	    	getThreadState(this.waitedThread).resetPriority();
+	    }
+	    if(this.waitQueue.isEmpty()) {
+	    	this.waitedThread = null; 
+	    	return null;
+	    	}
+	    ThreadState res = waitQueue.remove();
+	    res.acquire(this);
+	    return res.thread;
 	}
 
 	/**
@@ -155,12 +350,18 @@ public class PriorityScheduler extends Scheduler {
 	 */
 	protected ThreadState pickNextThread() {
 	    // implement me
-	    return null;
+	    return waitQueue.peek();
 	}
 	
 	public void print() {
 	    Lib.assertTrue(Machine.interrupt().disabled());
 	    // implement me (if you want)
+	}
+	
+	public int getMaxPriority(){
+		ThreadState ts=this.pickNextThread();
+		if(ts==null) return priorityMinimum;
+		return ts.getEffectivePriority();
 	}
 
 	/**
@@ -168,6 +369,9 @@ public class PriorityScheduler extends Scheduler {
 	 * threads to the owning thread.
 	 */
 	public boolean transferPriority;
+	public KThread waitedThread;
+	private java.util.PriorityQueue<ThreadState> waitQueue;
+	public int serialNum=0;
     }
 
     /**
@@ -206,7 +410,8 @@ public class PriorityScheduler extends Scheduler {
 	 */
 	public int getEffectivePriority() {
 	    // implement me
-	    return priority;
+	    return effective;
+	    //return priority;
 	}
 
 	/**
@@ -219,6 +424,7 @@ public class PriorityScheduler extends Scheduler {
 		return;
 	    
 	    this.priority = priority;
+	    this.resetPriority();
 	    
 	    // implement me
 	}
@@ -237,6 +443,11 @@ public class PriorityScheduler extends Scheduler {
 	 */
 	public void waitForAccess(PriorityQueue waitQueue) {
 	    // implement me
+		waitQueue.waitQueue.add(this);
+		this.selfQueue = waitQueue;
+		this.serialNum = waitQueue.serialNum++;
+		if(waitQueue.transferPriority)
+			getThreadState(waitQueue.waitedThread).setEffectivePriority(this.effective);
 	}
 
 	/**
@@ -250,12 +461,51 @@ public class PriorityScheduler extends Scheduler {
 	 * @see	nachos.threads.ThreadQueue#nextThread
 	 */
 	public void acquire(PriorityQueue waitQueue) {
-	    // implement me
+		if(waitQueue.transferPriority) waitedQueue.add(waitQueue);
+	    waitQueue.waitedThread = this.thread;
+	    this.selfQueue = null;
 	}	
+	
+	public void setEffectivePriority(int priority)
+	{
+		if(this.effective < priority)
+		{
+			this.effective = priority;
+			if(this.selfQueue != null)
+			{
+				this.selfQueue.waitQueue.remove(this);
+				this.selfQueue.waitQueue.add(this);
+				if(this.selfQueue.transferPriority)
+					getThreadState(this.selfQueue.waitedThread).setEffectivePriority(priority);
+			}
+		}
+	}
+	
+	public void resetPriority()
+	{
+		this.effective = waitedQueue.isEmpty() ? priorityMinimum : waitedQueue.peek().getMaxPriority();
+		if(this.effective<this.priority) this.effective = this.priority;
+	}
 
 	/** The thread with which this object is associated. */	   
 	protected KThread thread;
 	/** The priority of the associated thread. */
 	protected int priority;
+	protected int effective;
+    protected PriorityQueue selfQueue = null;
+    
+    private java.util.PriorityQueue<PriorityQueue> waitedQueue = new java.util.PriorityQueue<PriorityQueue>(new java.util.Comparator<PriorityQueue>()
+    	    {
+    			@Override
+    			public int compare(PriorityQueue arg0, PriorityQueue arg1) {
+    				int priority0 = arg0.getMaxPriority();
+    				int priority1 = arg1.getMaxPriority();
+    				if(priority0 > priority1) return -1;
+    				if(priority0 < priority1) return 1;
+    				return 0;
+    			}
+    	    });
+    public int serialNum=0;
+    
     }
 }
