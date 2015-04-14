@@ -293,7 +293,7 @@ public class KThread {
 		//this.waitedBy = currentThread;
 		if (waitingQueue == null)
 		{
-			waitingQueue = ThreadedKernel.scheduler.newThreadQueue(false);
+			waitingQueue = ThreadedKernel.scheduler.newThreadQueue(true);
 			waitingQueue.acquire(this);
 			waitingQueue.waitForAccess(currentThread);
 		    currentThread.sleep();
