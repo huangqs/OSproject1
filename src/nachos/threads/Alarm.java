@@ -1,5 +1,7 @@
 package nachos.threads;
 
+import java.util.LinkedList;
+import java.util.PriorityQueue;
 import nachos.machine.*;
 
 /**
@@ -15,10 +17,12 @@ public class Alarm {
      * alarm.
      */
     public Alarm() {
+    	
+	waitQueue = new PriorityQueue<AlarmedThread>();
 	Machine.timer().setInterruptHandler(new Runnable() {
 		public void run() { timerInterrupt(); }
 	    });
-    }
+	}
 
     /**
      * The timer interrupt handler. This is called by the machine's timer
@@ -27,7 +31,15 @@ public class Alarm {
      * that should be run.
      */
     public void timerInterrupt() {
-	KThread.currentThread().yield();
+    	Machine.interrupt().disable();
+    	while(!waitQueue.isEmpty()){
+    		if (waitQueue.peek().timeToWake <= Machine.timer().getTime())
+    			waitQueue.poll().thread.ready();
+    		else
+    			break;
+    	}
+		Machine.interrupt().enable();
+		KThread.currentThread().yield();
     }
 
     /**
@@ -46,8 +58,29 @@ public class Alarm {
      */
     public void waitUntil(long x) {
 	// for now, cheat just to get something working (busy waiting is bad)
-	long wakeTime = Machine.timer().getTime() + x;
-	while (wakeTime > Machine.timer().getTime())
-	    KThread.yield();
+	long timeToWake = Machine.timer().getTime() + x;
+	Machine.interrupt().disable();
+	waitQueue.add(new AlarmedThread(KThread.currentThread(), timeToWake));
+	KThread.sleep();
+	Machine.interrupt().enable();
     }
+    
+    private class AlarmedThread implements Comparable<AlarmedThread> {
+    	private KThread thread;
+    	private long timeToWake;
+    	AlarmedThread(KThread thread, long timeToWake){
+    		this.thread = thread;
+    		this.timeToWake = timeToWake;
+    	}
+    	
+    	@Override
+    	public int compareTo(AlarmedThread that){
+    		if (timeToWake <= that.timeToWake)
+    			return -1;
+    		else
+    			return 1;
+    	}
+    }
+    
+    private PriorityQueue<AlarmedThread> waitQueue;
 }
