@@ -64,9 +64,10 @@ public class Condition2 {
      */
     public void wakeAll() {
 	Lib.assertTrue(conditionLock.isHeldByCurrentThread());
+	Machine.interrupt().disable();
 	while (!waitQueue.isEmpty())
 	    wake();
-	//Machine.interrupt().enable();
+	Machine.interrupt().enable();
     }
     
     private LinkedList<KThread> waitQueue;
@@ -99,8 +100,10 @@ public class Condition2 {
     	KThread[] threads = new KThread[7];
 		for (int i = 0; i < 7; i ++){
 			threads[i] = new KThread(new Condition2Test(conditionLock, condition2)).setName("Thread" + i);
-			threads[i].fork();
 		}
+		for(int i = 0; i < 7; i ++)
+			threads[i].fork();
+		
 		
 		KThread.yield();
 		conditionLock.acquire();

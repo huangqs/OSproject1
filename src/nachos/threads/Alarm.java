@@ -83,4 +83,40 @@ public class Alarm {
     }
     
     private PriorityQueue<AlarmedThread> waitQueue;
+    
+    private static class AlarmTest implements Runnable{
+    	AlarmTest(long x){
+    		this.time = x;
+    	}
+    	
+    	public void run(){
+    		System.out.println(KThread.currentThread().getName() + " alarmed on " + (Machine.timer().getTime() + time));
+    		ThreadedKernel.alarm.waitUntil(time);
+    		System.out.println(KThread.currentThread().getName() + " woken up at " + Machine.timer().getTime());
+    	}
+    	
+    	private long time;
+    }
+    
+    public static void selfTest(){
+    	System.out.println("-------- Alarm Test --------");
+    	Runnable r = new Runnable() {
+    	    public void run() {
+                    KThread t[] = new KThread[7];
+
+                    for (int i=0; i<7; i++) {
+                         t[i] = new KThread(new AlarmTest(970 + i*970));
+                         t[i].setName("Thread" + i);
+                         t[i].fork();
+                    }
+                    for(int i=0; i<7; i++){
+                    	t[i].join();
+                    }
+                }
+        };
+
+        KThread t = new KThread(r);
+        t.fork();
+        t.join();
+    }
 }
