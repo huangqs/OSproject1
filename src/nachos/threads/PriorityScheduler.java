@@ -168,6 +168,8 @@ public class PriorityScheduler extends Scheduler {
 	 * threads to the owning thread.
 	 */
 	public boolean transferPriority;
+	public KThread waitedThread;
+	private java.util.PriorityQueue<KThread> waitQueue;
     }
 
     /**
@@ -257,5 +259,6 @@ public class PriorityScheduler extends Scheduler {
 	protected KThread thread;
 	/** The priority of the associated thread. */
 	protected int priority;
+	protected int effective;
     }
 }

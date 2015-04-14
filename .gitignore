@@ -1,3 +1,4 @@
 /src/nachos/proj1/nachos/*
 /bin/*
 *.gz
+/bin/
