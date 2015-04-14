@@ -1,7 +1,7 @@
 package nachos.threads;
 
 import nachos.machine.*;
-// test again
+
 /**
  * A KThread is a thread that can be used to execute Nachos kernel code. Nachos
  * allows multiple threads to run concurrently.
@@ -193,7 +193,15 @@ public class KThread {
 
 
 	currentThread.status = statusFinished;
-	if(currentThread.waitedBy != null) currentThread.waitedBy.ready();
+	//if(currentThread.waitedBy != null) currentThread.waitedBy.ready();
+	if(currentThread.waitingQueue != null) 
+	{
+		KThread k;
+		while((k = currentThread.waitingQueue.nextThread()) != null)
+		{
+			k.ready();
+		}
+	}
 	
 	sleep();
     }
@@ -282,8 +290,19 @@ public class KThread {
 	
 	if(this.status != statusFinished)
 	{
-		this.waitedBy = currentThread;
-		currentThread.sleep();
+		//this.waitedBy = currentThread;
+		if (waitingQueue == null)
+		{
+			waitingQueue = ThreadedKernel.scheduler.newThreadQueue(false);
+			waitingQueue.acquire(this);
+			waitingQueue.waitForAccess(currentThread);
+		    currentThread.sleep();
+		}
+		else
+		{
+			waitingQueue.waitForAccess(currentThread);
+			currentThread.sleep();
+		}
 	}			
 
 	Machine.interrupt().restore(intStatus);
@@ -493,7 +512,8 @@ public class KThread {
     /** Number of times the KThread constructor was called. */
     private static int numCreated = 0;
 
-    private KThread waitedBy = null;
+    //private KThread waitedBy = null;
+    private ThreadQueue waitingQueue = null;
     
     private static ThreadQueue readyQueue = null;
     private static KThread currentThread = null;
