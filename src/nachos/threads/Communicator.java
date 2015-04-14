@@ -48,6 +48,8 @@ public class Communicator {
     	
     	cond_listener.wake();
     	
+    	cond_speaker.sleep();
+    	
     	num_speaker--;
     	
     	l.release();
@@ -74,7 +76,7 @@ public class Communicator {
     	
     	num_listener--;
     	
-    	cond_speaker.wake();
+    	cond_speaker.wakeAll();
     	
     	l.release();
     	
