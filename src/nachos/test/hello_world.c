@@ -9,5 +9,5 @@ int main(int argc, char** argv)
   fprintf(fout, "Hello world! %d args:\n", argc);
   for(i=0;i<argc;i++) fprintf(fout, "%s\n", argv[i]);
   close(fout);
-  return 0;
+  halt(); // exit does not work now :(
 }
