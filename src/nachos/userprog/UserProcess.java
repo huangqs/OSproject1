@@ -28,9 +28,6 @@ public class UserProcess {
 	pageTable = new TranslationEntry[numPhysPages];
 	for (int i=0; i<numPhysPages; i++)
 	    pageTable[i] = new TranslationEntry(i,i, true,false,false,false);
-	openedFiles[0] = UserKernel.console.openForReading();
-	openedFiles[1] = UserKernel.console.openForWriting();
-	for (int i=2; i<16; i++) unusedFileDesc.push(i);
     }
     
     /**
@@ -274,7 +271,9 @@ public class UserProcess {
 	    Lib.assertTrue(writeVirtualMemory(stringOffset,new byte[] { 0 }) == 1);
 	    stringOffset += 1;
 	}
-
+	openedFiles[0] = UserKernel.console.openForReading();
+	openedFiles[1] = UserKernel.console.openForWriting();
+	for (int i=2; i<16; i++) unusedFileDesc.push(i);
 	return true;
     }
 
