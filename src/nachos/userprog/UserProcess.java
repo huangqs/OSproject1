@@ -5,6 +5,7 @@ import nachos.threads.*;
 import nachos.userprog.*;
 
 import java.io.EOFException;
+import java.util.Stack;
 
 /**
  * Encapsulates the state of a user process that is not contained in its
@@ -27,6 +28,9 @@ public class UserProcess {
 	pageTable = new TranslationEntry[numPhysPages];
 	for (int i=0; i<numPhysPages; i++)
 	    pageTable[i] = new TranslationEntry(i,i, true,false,false,false);
+	openedFiles[0] = UserKernel.console.openForReading();
+	openedFiles[1] = UserKernel.console.openForWriting();
+	for (int i=2; i<16; i++) unusedFileDesc.push(i);
     }
     
     /**
@@ -345,7 +349,63 @@ public class UserProcess {
 	Lib.assertNotReached("Machine.halt() did not halt machine!");
 	return 0;
     }
+    
+    private int handleExit(int status)
+    {
+	    Lib.assertNotReached("exit("+status+") not implemented!");
+    	// TODO: implement me
+    	return 0;
+    }
 
+    private int handleOpen(int namePtr, boolean create) {
+    	// TODO: atomic operation?
+		if(unusedFileDesc.isEmpty()) return -1;
+    	String name = readVirtualMemoryString(namePtr, 256);
+    	if(name == null) return -1;
+    	OpenFile file = ThreadedKernel.fileSystem.open(name, create);
+    	if(file == null) return -1;
+		int fd = unusedFileDesc.pop();
+		openedFiles[fd] = file;
+		return fd;
+	}
+
+    private int handleRead(int fileDescriptor, int bufferPtr, int count) {
+    	// TODO: atomic operation?
+    	if(openedFiles[fileDescriptor] == null) return -1;
+    	if(count < 0) return -1;
+    	byte[] buf = new byte[count]; // TODO: too large?
+    	int res = openedFiles[fileDescriptor].read(buf, 0, count);
+    	if(res == -1) return -1;
+    	if(writeVirtualMemory(bufferPtr, buf, 0, res) < res) return -1;
+    	return res;
+    }
+    
+    private int handleWrite(int fileDescriptor, int bufferPtr, int count) {
+    	// TODO: atomic operation?
+    	if(openedFiles[fileDescriptor] == null) return -1;
+    	if(count < 0) return -1;
+    	byte[] buf = new byte[count]; // TODO: too large?
+    	if(readVirtualMemory(bufferPtr, buf) < count) return -1;
+    	int res = openedFiles[fileDescriptor].write(buf, 0, count);
+    	return res;
+    }
+
+    private int handleClose(int fileDescriptor) {
+    	// TODO: atomic operation?
+    	if(openedFiles[fileDescriptor] == null) return -1;
+    	openedFiles[fileDescriptor].close();
+    	openedFiles[fileDescriptor] = null;
+    	unusedFileDesc.push(fileDescriptor);
+    	return 0;
+    }
+    
+    private int handleUnlink(int namePtr)
+    {
+    	String name = readVirtualMemoryString(namePtr, 256);
+    	if(name == null) return -1;
+    	if(ThreadedKernel.fileSystem.remove(name)) return 0;
+    	return -1;
+    }
 
     private static final int
         syscallHalt = 0,
@@ -391,7 +451,20 @@ public class UserProcess {
 	switch (syscall) {
 	case syscallHalt:
 	    return handleHalt();
-
+	case syscallExit:
+		return handleExit(a0);
+	case syscallCreate:
+		return handleOpen(a0, true);
+	case syscallOpen:
+		return handleOpen(a0, false);
+	case syscallRead:
+		return handleRead(a0, a1, a2);
+	case syscallWrite:
+		return handleWrite(a0, a1, a2);
+	case syscallClose:
+		return handleClose(a0);
+	case syscallUnlink:
+		return handleUnlink(a0);
 
 	default:
 	    Lib.debug(dbgProcess, "Unknown syscall " + syscall);
@@ -399,8 +472,9 @@ public class UserProcess {
 	}
 	return 0;
     }
+    
 
-    /**
+	/**
      * Handle a user exception. Called by
      * <tt>UserKernel.exceptionHandler()</tt>. The
      * <i>cause</i> argument identifies which exception occurred; see the
@@ -446,4 +520,7 @@ public class UserProcess {
 	
     private static final int pageSize = Processor.pageSize;
     private static final char dbgProcess = 'a';
+    
+    private OpenFile[] openedFiles = new OpenFile[16];
+    private Stack<Integer> unusedFileDesc = new Stack<Integer>();
 }
