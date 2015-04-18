@@ -371,8 +371,8 @@ public class UserProcess {
 
     private int handleRead(int fileDescriptor, int bufferPtr, int count) {
     	// TODO: atomic operation?
+    	if(fileDescriptor < 0 || fileDescriptor >= openedFiles.length || count < 0) return -1;
     	if(openedFiles[fileDescriptor] == null) return -1;
-    	if(count < 0) return -1;
     	byte[] buf = new byte[count]; // TODO: too large?
     	int res = openedFiles[fileDescriptor].read(buf, 0, count);
     	if(res == -1) return -1;
@@ -382,8 +382,8 @@ public class UserProcess {
     
     private int handleWrite(int fileDescriptor, int bufferPtr, int count) {
     	// TODO: atomic operation?
+    	if(fileDescriptor < 0 || fileDescriptor >= openedFiles.length || count < 0) return -1;
     	if(openedFiles[fileDescriptor] == null) return -1;
-    	if(count < 0) return -1;
     	byte[] buf = new byte[count]; // TODO: too large?
     	if(readVirtualMemory(bufferPtr, buf) < count) return -1;
     	int res = openedFiles[fileDescriptor].write(buf, 0, count);
@@ -392,6 +392,7 @@ public class UserProcess {
 
     private int handleClose(int fileDescriptor) {
     	// TODO: atomic operation?
+    	if(fileDescriptor < 0 || fileDescriptor >= openedFiles.length) return -1;
     	if(openedFiles[fileDescriptor] == null) return -1;
     	openedFiles[fileDescriptor].close();
     	openedFiles[fileDescriptor] = null;
