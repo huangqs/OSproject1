@@ -208,7 +208,7 @@ public class UserProcess {
 	int pageOffset = Processor.offsetFromAddress(vaddr);
 	int paddr = Processor.makeAddress(ppn, pageOffset);
 	int res = Math.min(length, pageSize-pageOffset);
-	System.arraycopy(data, offset, memory, vaddr, res);
+	System.arraycopy(data, offset, memory, paddr, res);
 	while(length > res)
 	{
 		vpn++;
@@ -344,6 +344,9 @@ public class UserProcess {
 		section.loadPage(i, ppn);
 	    }
 	}
+	
+	for (int i=0; i<numPages; i++) if(pageTable[i] == null)
+		pageTable[i] = new TranslationEntry(i, unusedPPN.pop(), true, false, false, false);
 	
 	return true;
     }
