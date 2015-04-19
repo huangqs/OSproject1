@@ -32,6 +32,7 @@ public class UserKernel extends ThreadedKernel {
 
 	int numPhysPages = Machine.processor().getNumPhysPages();
 	for(int i=0; i<numPhysPages; i++) unusedPPN.push(i);
+	unusedPPNLock = new Lock();
     }
 
     /**
@@ -113,6 +114,7 @@ public class UserKernel extends ThreadedKernel {
     }
 
     public static Stack<Integer> unusedPPN = new Stack<Integer>();
+    public static Lock unusedPPNLock;
 
     /** Globally accessible reference to the synchronized console. */
     public static SynchConsole console;

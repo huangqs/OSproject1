@@ -310,8 +310,10 @@ public class UserProcess {
      * @return	<tt>true</tt> if the sections were successfully loaded.
      */
     protected boolean loadSections() {
-    	//TODO: atomic operation on unusedPPN?
+
+    UserKernel.unusedPPNLock.acquire();
 	if (numPages > UserKernel.unusedPPN.size()) {
+		UserKernel.unusedPPNLock.release();
 	    coff.close();
 	    Lib.debug(dbgProcess, "\tinsufficient physical memory");
 	    return false;
@@ -338,6 +340,7 @@ public class UserProcess {
 	for (int i=0; i<numPages; i++) if(pageTable[i] == null)
 		pageTable[i] = new TranslationEntry(i, UserKernel.unusedPPN.pop(), true, false, false, false);
 	
+	UserKernel.unusedPPNLock.release();
 	return true;
     }
 
@@ -345,9 +348,10 @@ public class UserProcess {
      * Release any resources allocated by <tt>loadSections()</tt>.
      */
     protected void unloadSections() {
-    	//TODO: atomic operation on unusedPPN?
+    	UserKernel.unusedPPNLock.acquire();
     	for(int i=0; i<numPages; i++)
     		UserKernel.unusedPPN.push(pageTable[i].ppn);
+    	UserKernel.unusedPPNLock.release();
     }    
 
     /**
