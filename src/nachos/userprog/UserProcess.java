@@ -24,16 +24,6 @@ public class UserProcess {
      * Allocate a new process.
      */
     public UserProcess() {
-    	isRoot = notInitialized;
-    	if(isRoot)
-    	{
-    		notInitialized = false;
-    		int numPhysPages = Machine.processor().getNumPhysPages();
-    		for(int i=0; i<numPhysPages; i++) unusedPPN.push(i);
-    		/* pageTable = new TranslationEntry[numPhysPages];
-    		for (int i=0; i<numPhysPages; i++)
-    			pageTable[i] = new TranslationEntry(i,i, true,false,false,false); */
-    	}
     }
     
     /**
@@ -321,7 +311,7 @@ public class UserProcess {
      */
     protected boolean loadSections() {
     	//TODO: atomic operation on unusedPPN?
-	if (numPages > unusedPPN.size()) {
+	if (numPages > UserKernel.unusedPPN.size()) {
 	    coff.close();
 	    Lib.debug(dbgProcess, "\tinsufficient physical memory");
 	    return false;
@@ -338,7 +328,7 @@ public class UserProcess {
 
 	    for (int i=0; i<section.getLength(); i++) {
 		int vpn = section.getFirstVPN()+i;
-		int ppn = unusedPPN.pop();
+		int ppn = UserKernel.unusedPPN.pop();
 
 		pageTable[vpn] = new TranslationEntry(vpn, ppn, true, section.isReadOnly(), false, false);
 		section.loadPage(i, ppn);
@@ -346,7 +336,7 @@ public class UserProcess {
 	}
 	
 	for (int i=0; i<numPages; i++) if(pageTable[i] == null)
-		pageTable[i] = new TranslationEntry(i, unusedPPN.pop(), true, false, false, false);
+		pageTable[i] = new TranslationEntry(i, UserKernel.unusedPPN.pop(), true, false, false, false);
 	
 	return true;
     }
@@ -357,7 +347,7 @@ public class UserProcess {
     protected void unloadSections() {
     	//TODO: atomic operation on unusedPPN?
     	for(int i=0; i<numPages; i++)
-    		unusedPPN.push(pageTable[i].ppn);
+    		UserKernel.unusedPPN.push(pageTable[i].ppn);
     }    
 
     /**
@@ -387,7 +377,7 @@ public class UserProcess {
      * Handle the halt() system call. 
      */
     private int handleHalt() {
-    	if(!isRoot) return -1;
+    	if(parent != null) return -1;
     	Machine.halt();
     	
     	Lib.assertNotReached("Machine.halt() did not halt machine!");
@@ -569,7 +559,5 @@ public class UserProcess {
     private OpenFile[] openedFiles = new OpenFile[16];
     private Stack<Integer> unusedFileDesc = new Stack<Integer>();
     
-    private boolean isRoot;
-    private static boolean notInitialized = true;
-    private static Stack<Integer> unusedPPN = new Stack<Integer>();
+    private UserProcess parent = null;
 }

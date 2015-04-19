@@ -1,5 +1,7 @@
 package nachos.userprog;
 
+import java.util.Stack;
+
 import nachos.machine.*;
 import nachos.threads.*;
 import nachos.userprog.*;
@@ -27,6 +29,9 @@ public class UserKernel extends ThreadedKernel {
 	Machine.processor().setExceptionHandler(new Runnable() {
 		public void run() { exceptionHandler(); }
 	    });
+
+	int numPhysPages = Machine.processor().getNumPhysPages();
+	for(int i=0; i<numPhysPages; i++) unusedPPN.push(i);
     }
 
     /**
@@ -106,6 +111,8 @@ public class UserKernel extends ThreadedKernel {
     public void terminate() {
 	super.terminate();
     }
+
+    public static Stack<Integer> unusedPPN = new Stack<Integer>();
 
     /** Globally accessible reference to the synchronized console. */
     public static SynchConsole console;
