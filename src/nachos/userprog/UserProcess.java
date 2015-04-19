@@ -24,10 +24,16 @@ public class UserProcess {
      * Allocate a new process.
      */
     public UserProcess() {
-	int numPhysPages = Machine.processor().getNumPhysPages();
-	pageTable = new TranslationEntry[numPhysPages];
-	for (int i=0; i<numPhysPages; i++)
-	    pageTable[i] = new TranslationEntry(i,i, true,false,false,false);
+    	isRoot = notInitialized;
+    	if(isRoot)
+    	{
+    		notInitialized = false;
+    		int numPhysPages = Machine.processor().getNumPhysPages();
+    		for(int i=0; i<numPhysPages; i++) unusedPPN.push(i);
+    		/* pageTable = new TranslationEntry[numPhysPages];
+    		for (int i=0; i<numPhysPages; i++)
+    			pageTable[i] = new TranslationEntry(i,i, true,false,false,false); */
+    	}
     }
     
     /**
@@ -101,6 +107,15 @@ public class UserProcess {
 
 	return null;
     }
+    
+    private int getPPN(int vpn, boolean write)
+    {
+    	if (vpn < 0 || vpn >= numPages) return -1;	
+    	TranslationEntry entry = pageTable[vpn];
+    	Lib.assertTrue(entry.vpn == vpn);
+    	if(write && entry.readOnly) return -1;
+    	return entry.ppn;
+    }
 
     /**
      * Transfer data from this process's virtual memory to all of the specified
@@ -131,17 +146,27 @@ public class UserProcess {
     public int readVirtualMemory(int vaddr, byte[] data, int offset,
 				 int length) {
 	Lib.assertTrue(offset >= 0 && length >= 0 && offset+length <= data.length);
-
+	
 	byte[] memory = Machine.processor().getMemory();
 	
-	// for now, just assume that virtual addresses equal physical addresses
-	if (vaddr < 0 || vaddr >= memory.length)
-	    return 0;
-
-	int amount = Math.min(length, memory.length-vaddr);
-	System.arraycopy(memory, vaddr, data, offset, amount);
-
-	return amount;
+	int vpn = Processor.pageFromAddress(vaddr);
+	int ppn = getPPN(vpn, false);
+	if(ppn < 0) return 0;
+	int pageOffset = Processor.offsetFromAddress(vaddr);
+	int paddr = Processor.makeAddress(ppn, pageOffset);
+	int res = Math.min(length, pageSize-pageOffset);
+	System.arraycopy(memory, paddr, data, offset, res);
+	while(length > res)
+	{
+		vpn++;
+		ppn = getPPN(vpn, false);
+		if(ppn < 0) return res;
+		paddr = Processor.makeAddress(ppn, 0);
+		int amount = Math.min(length - res, pageSize);
+		System.arraycopy(memory, paddr, data, offset + res, amount);
+		res += amount;
+	}
+	return res;
     }
 
     /**
@@ -177,14 +202,24 @@ public class UserProcess {
 
 	byte[] memory = Machine.processor().getMemory();
 	
-	// for now, just assume that virtual addresses equal physical addresses
-	if (vaddr < 0 || vaddr >= memory.length)
-	    return 0;
-
-	int amount = Math.min(length, memory.length-vaddr);
-	System.arraycopy(data, offset, memory, vaddr, amount);
-
-	return amount;
+	int vpn = Processor.pageFromAddress(vaddr);
+	int ppn = getPPN(vpn, true);
+	if(ppn < 0) return 0;
+	int pageOffset = Processor.offsetFromAddress(vaddr);
+	int paddr = Processor.makeAddress(ppn, pageOffset);
+	int res = Math.min(length, pageSize-pageOffset);
+	System.arraycopy(data, offset, memory, vaddr, res);
+	while(length > res)
+	{
+		vpn++;
+		ppn = getPPN(vpn, true);
+		if(ppn < 0) return res;
+		paddr = Processor.makeAddress(ppn, 0);
+		int amount = Math.min(length - res, pageSize);
+		System.arraycopy(data, offset + res, memory, paddr, amount);
+		res += amount;
+	}
+	return res;
     }
 
     /**
@@ -285,11 +320,14 @@ public class UserProcess {
      * @return	<tt>true</tt> if the sections were successfully loaded.
      */
     protected boolean loadSections() {
-	if (numPages > Machine.processor().getNumPhysPages()) {
+    	//TODO: atomic operation on unusedPPN?
+	if (numPages > unusedPPN.size()) {
 	    coff.close();
 	    Lib.debug(dbgProcess, "\tinsufficient physical memory");
 	    return false;
 	}
+	
+	pageTable = new TranslationEntry[numPages];
 
 	// load sections
 	for (int s=0; s<coff.getNumSections(); s++) {
@@ -300,9 +338,10 @@ public class UserProcess {
 
 	    for (int i=0; i<section.getLength(); i++) {
 		int vpn = section.getFirstVPN()+i;
+		int ppn = unusedPPN.pop();
 
-		// for now, just assume virtual addresses=physical addresses
-		section.loadPage(i, vpn);
+		pageTable[vpn] = new TranslationEntry(vpn, ppn, true, section.isReadOnly(), false, false);
+		section.loadPage(i, ppn);
 	    }
 	}
 	
@@ -313,6 +352,9 @@ public class UserProcess {
      * Release any resources allocated by <tt>loadSections()</tt>.
      */
     protected void unloadSections() {
+    	//TODO: atomic operation on unusedPPN?
+    	for(int i=0; i<numPages; i++)
+    		unusedPPN.push(pageTable[i].ppn);
     }    
 
     /**
@@ -342,11 +384,11 @@ public class UserProcess {
      * Handle the halt() system call. 
      */
     private int handleHalt() {
-
-	Machine.halt();
-	
-	Lib.assertNotReached("Machine.halt() did not halt machine!");
-	return 0;
+    	if(!isRoot) return -1;
+    	Machine.halt();
+    	
+    	Lib.assertNotReached("Machine.halt() did not halt machine!");
+    	return 0;
     }
     
     private int handleExit(int status)
@@ -523,4 +565,8 @@ public class UserProcess {
     
     private OpenFile[] openedFiles = new OpenFile[16];
     private Stack<Integer> unusedFileDesc = new Stack<Integer>();
+    
+    private boolean isRoot;
+    private static boolean notInitialized = true;
+    private static Stack<Integer> unusedPPN = new Stack<Integer>();
 }
