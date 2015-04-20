@@ -5,7 +5,7 @@ import nachos.threads.*;
 import nachos.userprog.*;
 
 import java.io.EOFException;
-import java.util.Stack;
+import java.util.*;
 
 /**
  * Encapsulates the state of a user process that is not contained in its
@@ -24,6 +24,7 @@ public class UserProcess {
      * Allocate a new process.
      */
     public UserProcess() {
+    	processTable.put(id, this);
     }
     
     /**
@@ -48,8 +49,10 @@ public class UserProcess {
     public boolean execute(String name, String[] args) {
 	if (!load(name, args))
 	    return false;
-	
-	new UThread(this).setName(name).fork();
+
+	numRunning ++;
+	this.thread = new UThread(this);
+	this.thread.setName(name).fork();
 
 	return true;
     }
@@ -381,7 +384,7 @@ public class UserProcess {
      * Handle the halt() system call. 
      */
     private int handleHalt() {
-    	if(parent != null) return -1;
+    	if(id != 0) return -1;
     	Machine.halt();
     	
     	Lib.assertNotReached("Machine.halt() did not halt machine!");
@@ -390,9 +393,42 @@ public class UserProcess {
     
     private int handleExit(int status)
     {
-	    Lib.assertNotReached("exit("+status+") not implemented!");
-    	// TODO: implement me
+    	for(OpenFile f:this.openedFiles) if(f != null) f.close();
+    	this.unloadSections();
+    	this.exitStatus = status;
+    	if(--numRunning == 0) Kernel.kernel.terminate();
+    	KThread.finish();
+    	
+	    Lib.assertNotReached("KThread.finish() did not finish thread!");
     	return 0;
+    }
+    
+    private int handleExec(int filePtr, int argc, int argvPtr)
+    {
+    	String name = readVirtualMemoryString(filePtr, 256);
+    	if(name == null) return -1;
+    	String[] args = new String[argc];
+    	for(int i=0; i<argc; i++)
+    	{
+    		byte[] buf = new byte[4];
+    		if(readVirtualMemory(argvPtr + 4*i, buf) < 4) return -1;
+    		args[i] = readVirtualMemoryString(Lib.bytesToInt(buf, 0), 256);
+    		if(args[i] == null) return -1;
+    	}
+    	UserProcess child = newUserProcess();
+    	child.parent = this;
+    	if(!child.execute(name, args)) return -1;
+    	return child.id;
+    }
+    
+    private int handleJoin(int processID, int statusPtr)
+    {
+    	UserProcess child = processTable.get(processID);
+    	if(child == null || child.parent != this) return -1;
+    	child.thread.join();
+    	child.parent = null;
+    	writeVirtualMemory(statusPtr, Lib.bytesFromInt(child.exitStatus));
+    	return child.exception ? 0 : 1;
     }
 
     private int handleOpen(int namePtr, boolean create) {
@@ -492,6 +528,10 @@ public class UserProcess {
 	    return handleHalt();
 	case syscallExit:
 		return handleExit(a0);
+	case syscallExec:
+		return handleExec(a0, a1, a2);
+	case syscallJoin:
+		return handleJoin(a0, a1);
 	case syscallCreate:
 		return handleOpen(a0, true);
 	case syscallOpen:
@@ -539,10 +579,12 @@ public class UserProcess {
 	default:
 	    Lib.debug(dbgProcess, "Unexpected exception: " +
 		      Processor.exceptionNames[cause]);
+	    this.exception = true;
+	    this.handleExit(cause);
 	    Lib.assertNotReached("Unexpected exception");
 	}
     }
-
+    
     /** The program being run by this process. */
     protected Coff coff;
 
@@ -564,4 +606,11 @@ public class UserProcess {
     private Stack<Integer> unusedFileDesc = new Stack<Integer>();
     
     private UserProcess parent = null;
+    private UThread thread = null;
+    private int id = numCreated++;
+    private static int numCreated = 0;
+    private static int numRunning = 0;
+    private static Map<Integer, UserProcess> processTable = new HashMap<Integer, UserProcess>();
+    private int exitStatus = 0;
+    private boolean exception = false;
 }

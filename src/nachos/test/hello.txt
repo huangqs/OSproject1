@@ -1,1 +1,4 @@
-Hello world! 0 args:
+Hello world! 3 args:
+hello_world
+hello
+world
