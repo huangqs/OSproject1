@@ -2,3 +2,4 @@
 /bin/*
 *.gz
 /bin/
+*.html

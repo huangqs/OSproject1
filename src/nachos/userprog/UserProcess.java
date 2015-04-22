@@ -24,7 +24,7 @@ public class UserProcess {
      * Allocate a new process.
      */
     public UserProcess() {
-    	processTable.put(id, this);
+    	
     }
     
     /**
@@ -50,7 +50,10 @@ public class UserProcess {
 	if (!load(name, args))
 	    return false;
 
+	numRunninglock.acquire();
 	numRunning ++;
+	numRunninglock.release();
+	
 	this.thread = new UThread(this);
 	this.thread.setName(name).fork();
 
@@ -302,6 +305,15 @@ public class UserProcess {
 	openedFiles[0] = UserKernel.console.openForReading();
 	openedFiles[1] = UserKernel.console.openForWriting();
 	for (int i=2; i<16; i++) unusedFileDesc.push(i);
+	
+	numCreatedlock.acquire();
+	id = numCreated++;
+	numCreatedlock.release();
+	
+	processTablelock.acquire();
+	processTable.put(id, this);
+	processTablelock.release();
+	
 	return true;
     }
 
@@ -396,7 +408,11 @@ public class UserProcess {
     	for(OpenFile f:this.openedFiles) if(f != null) f.close();
     	this.unloadSections();
     	this.exitStatus = status;
+    	
+    	numRunninglock.acquire();
     	if(--numRunning == 0) Kernel.kernel.terminate();
+    	numRunninglock.release();
+    	
     	KThread.finish();
     	
 	    Lib.assertNotReached("KThread.finish() did not finish thread!");
@@ -423,7 +439,10 @@ public class UserProcess {
     
     private int handleJoin(int processID, int statusPtr)
     {
+    	processTablelock.acquire();
     	UserProcess child = processTable.get(processID);
+    	processTablelock.release();
+    	
     	if(child == null || child.parent != this) return -1;
     	child.thread.join();
     	child.parent = null;
@@ -607,10 +626,13 @@ public class UserProcess {
     
     private UserProcess parent = null;
     private UThread thread = null;
-    private int id = numCreated++;
+    private int id;
     private static int numCreated = 0;
+    private static Lock numCreatedlock;
     private static int numRunning = 0;
+    private static Lock numRunninglock;
     private static Map<Integer, UserProcess> processTable = new HashMap<Integer, UserProcess>();
+    private static Lock processTablelock;
     private int exitStatus = 0;
     private boolean exception = false;
 }
