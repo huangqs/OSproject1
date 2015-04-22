@@ -628,11 +628,11 @@ public class UserProcess {
     private UThread thread = null;
     private int id;
     private static int numCreated = 0;
-    private static Lock numCreatedlock;
+    private static Lock numCreatedlock = new Lock();
     private static int numRunning = 0;
-    private static Lock numRunninglock;
+    private static Lock numRunninglock = new Lock();
     private static Map<Integer, UserProcess> processTable = new HashMap<Integer, UserProcess>();
-    private static Lock processTablelock;
+    private static Lock processTablelock = new Lock();
     private int exitStatus = 0;
     private boolean exception = false;
 }
