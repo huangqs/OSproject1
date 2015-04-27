@@ -1,5 +1,7 @@
 package nachos.userprog;
 
+import java.util.Stack;
+
 import nachos.machine.*;
 import nachos.threads.*;
 import nachos.userprog.*;
@@ -27,6 +29,10 @@ public class UserKernel extends ThreadedKernel {
 	Machine.processor().setExceptionHandler(new Runnable() {
 		public void run() { exceptionHandler(); }
 	    });
+
+	int numPhysPages = Machine.processor().getNumPhysPages();
+	for(int i=0; i<numPhysPages; i++) unusedPPN.push(i);
+	unusedPPNLock = new Lock();
     }
 
     /**
@@ -35,7 +41,7 @@ public class UserKernel extends ThreadedKernel {
     public void selfTest() {
 	super.selfTest();
 
-	System.out.println("Testing the console device. Typed characters");
+	/*System.out.println("Testing the console device. Typed characters");
 	System.out.println("will be echoed until q is typed.");
 
 	char c;
@@ -46,7 +52,7 @@ public class UserKernel extends ThreadedKernel {
 	}
 	while (c != 'q');
 
-	System.out.println("");
+	System.out.println("");*/
     }
 
     /**
@@ -106,6 +112,9 @@ public class UserKernel extends ThreadedKernel {
     public void terminate() {
 	super.terminate();
     }
+
+    public static Stack<Integer> unusedPPN = new Stack<Integer>();
+    public static Lock unusedPPNLock;
 
     /** Globally accessible reference to the synchronized console. */
     public static SynchConsole console;
