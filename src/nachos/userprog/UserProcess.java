@@ -406,6 +406,7 @@ public class UserProcess {
     private int handleExit(int status)
     {
     	for(OpenFile f:this.openedFiles) if(f != null) f.close();
+    	this.coff.close();
     	this.unloadSections();
     	this.exitStatus = status;
     	
