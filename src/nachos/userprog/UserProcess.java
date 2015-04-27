@@ -431,7 +431,7 @@ public class UserProcess {
     		args[i] = readVirtualMemoryString(Lib.bytesToInt(buf, 0), 256);
     		if(args[i] == null) return -1;
     	}
-    	UserProcess child = newUserProcess();
+    	UserProcess child = new UserProcess();
     	child.parent = this;
     	if(!child.execute(name, args)) return -1;
     	return child.id;
