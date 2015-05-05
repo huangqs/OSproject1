@@ -231,7 +231,7 @@ public class UserProcess {
     private boolean load(String name, String[] args) {
 	Lib.debug(dbgProcess, "UserProcess.load(\"" + name + "\")");
 	
-	OpenFile executable = ThreadedKernel.fileSystem.open(name, false);
+	OpenFile executable = UserKernel.userFileSystem.open(name, false);
 	if (executable == null) {
 	    Lib.debug(dbgProcess, "\topen failed");
 	    return false;
@@ -456,7 +456,7 @@ public class UserProcess {
 		if(unusedFileDesc.isEmpty()) return -1;
     	String name = readVirtualMemoryString(namePtr, 256);
     	if(name == null) return -1;
-    	OpenFile file = ThreadedKernel.fileSystem.open(name, create);
+    	OpenFile file = UserKernel.userFileSystem.open(name, create);
     	if(file == null) return -1;
 		int fd = unusedFileDesc.pop();
 		openedFiles[fd] = file;
@@ -498,7 +498,7 @@ public class UserProcess {
     {
     	String name = readVirtualMemoryString(namePtr, 256);
     	if(name == null) return -1;
-    	if(ThreadedKernel.fileSystem.remove(name)) return 0;
+    	if(UserKernel.userFileSystem.remove(name)) return 0;
     	return -1;
     }
 
