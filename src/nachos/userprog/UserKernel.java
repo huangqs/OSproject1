@@ -10,39 +10,39 @@ import nachos.userprog.*;
  * A kernel that can support multiple user processes.
  */
 public class UserKernel extends ThreadedKernel {
-    /**
-     * Allocate a new user kernel.
-     */
-    public UserKernel() {
-	super();
-    }
+	/**
+	 * Allocate a new user kernel.
+	 */
+	public UserKernel() {
+		super();
+	}
 
-    /**
-     * Initialize this kernel. Creates a synchronized console and sets the
-     * processor's exception handler.
-     */
-    public void initialize(String[] args) {
-	super.initialize(args);
+	/**
+	 * Initialize this kernel. Creates a synchronized console and sets the
+	 * processor's exception handler.
+	 */
+	public void initialize(String[] args) {
+		super.initialize(args);
 
-	console = new SynchConsole(Machine.console());
-	
-	Machine.processor().setExceptionHandler(new Runnable() {
-		public void run() { exceptionHandler(); }
-	    });
+		console = new SynchConsole(Machine.console());
 
-	int numPhysPages = Machine.processor().getNumPhysPages();
-	for(int i=0; i<numPhysPages; i++) unusedPPN.push(i);
-	unusedPPNLock = new Lock();
-	userFileSystem = new UserFileSystem(ThreadedKernel.fileSystem);
-    }
+		Machine.processor().setExceptionHandler(new Runnable() {
+			public void run() { exceptionHandler(); }
+		});
 
-    /**
-     * Test the console device.
-     */	
-    public void selfTest() {
-	super.selfTest();
+		int numPhysPages = Machine.processor().getNumPhysPages();
+		for(int i=0; i<numPhysPages; i++) unusedPPN.push(i);
+		unusedPPNLock = new Lock();
+		userFileSystem = new UserFileSystem(ThreadedKernel.fileSystem);
+	}
 
-	/*System.out.println("Testing the console device. Typed characters");
+	/**
+	 * Test the console device.
+	 */	
+	public void selfTest() {
+		super.selfTest();
+
+		/*System.out.println("Testing the console device. Typed characters");
 	System.out.println("will be echoed until q is typed.");
 
 	char c;
@@ -54,86 +54,86 @@ public class UserKernel extends ThreadedKernel {
 	while (c != 'q');
 
 	System.out.println("");*/
-    }
+	}
 
-    /**
-     * Returns the current process.
-     *
-     * @return	the current process, or <tt>null</tt> if no process is current.
-     */
-    public static UserProcess currentProcess() {
-	if (!(KThread.currentThread() instanceof UThread))
-	    return null;
-	
-	return ((UThread) KThread.currentThread()).process;
-    }
+	/**
+	 * Returns the current process.
+	 *
+	 * @return	the current process, or <tt>null</tt> if no process is current.
+	 */
+	public static UserProcess currentProcess() {
+		if (!(KThread.currentThread() instanceof UThread))
+			return null;
 
-    /**
-     * The exception handler. This handler is called by the processor whenever
-     * a user instruction causes a processor exception.
-     *
-     * <p>
-     * When the exception handler is invoked, interrupts are enabled, and the
-     * processor's cause register contains an integer identifying the cause of
-     * the exception (see the <tt>exceptionZZZ</tt> constants in the
-     * <tt>Processor</tt> class). If the exception involves a bad virtual
-     * address (e.g. page fault, TLB miss, read-only, bus error, or address
-     * error), the processor's BadVAddr register identifies the virtual address
-     * that caused the exception.
-     */
-    public void exceptionHandler() {
-	Lib.assertTrue(KThread.currentThread() instanceof UThread);
+		return ((UThread) KThread.currentThread()).process;
+	}
 
-	UserProcess process = ((UThread) KThread.currentThread()).process;
-	int cause = Machine.processor().readRegister(Processor.regCause);
-	process.handleException(cause);
-    }
+	/**
+	 * The exception handler. This handler is called by the processor whenever
+	 * a user instruction causes a processor exception.
+	 *
+	 * <p>
+	 * When the exception handler is invoked, interrupts are enabled, and the
+	 * processor's cause register contains an integer identifying the cause of
+	 * the exception (see the <tt>exceptionZZZ</tt> constants in the
+	 * <tt>Processor</tt> class). If the exception involves a bad virtual
+	 * address (e.g. page fault, TLB miss, read-only, bus error, or address
+	 * error), the processor's BadVAddr register identifies the virtual address
+	 * that caused the exception.
+	 */
+	public void exceptionHandler() {
+		Lib.assertTrue(KThread.currentThread() instanceof UThread);
 
-    /**
-     * Start running user programs, by creating a process and running a shell
-     * program in it. The name of the shell program it must run is returned by
-     * <tt>Machine.getShellProgramName()</tt>.
-     *
-     * @see	nachos.machine.Machine#getShellProgramName
-     */
-    public void run() {
-	super.run();
+		UserProcess process = ((UThread) KThread.currentThread()).process;
+		int cause = Machine.processor().readRegister(Processor.regCause);
+		process.handleException(cause);
+	}
 
-	UserProcess process = UserProcess.newUserProcess();
-	
-	String shellProgram = Machine.getShellProgramName();	
-	Lib.assertTrue(process.execute(shellProgram, new String[] { }));
+	/**
+	 * Start running user programs, by creating a process and running a shell
+	 * program in it. The name of the shell program it must run is returned by
+	 * <tt>Machine.getShellProgramName()</tt>.
+	 *
+	 * @see	nachos.machine.Machine#getShellProgramName
+	 */
+	public void run() {
+		super.run();
 
-	KThread.currentThread().finish();
-    }
+		UserProcess process = UserProcess.newUserProcess();
 
-    /**
-     * Terminate this kernel. Never returns.
-     */
-    public void terminate() {
-	super.terminate();
-    }
+		String shellProgram = Machine.getShellProgramName();	
+		Lib.assertTrue(process.execute(shellProgram, new String[] { }));
 
-    public static Stack<Integer> unusedPPN = new Stack<Integer>();
-    public static Lock unusedPPNLock;
-    
-    public static class UserFileSystem implements FileSystem
-    {
-    	FileSystem underlyingFileSystem;
-    	public UserFileSystem(FileSystem fs) {underlyingFileSystem = fs;}
+		KThread.currentThread().finish();
+	}
+
+	/**
+	 * Terminate this kernel. Never returns.
+	 */
+	public void terminate() {
+		super.terminate();
+	}
+
+	public static Stack<Integer> unusedPPN = new Stack<Integer>();
+	public static Lock unusedPPNLock;
+
+	public static class UserFileSystem implements FileSystem
+	{
+		FileSystem underlyingFileSystem;
+		public UserFileSystem(FileSystem fs) {underlyingFileSystem = fs;}
 
 		@Override
 		public OpenFile open(String name, boolean create) {
 			OpenFile res;
 			fileRefsLock.acquire();
-			
+
 			if(fileRefs.containsKey(name) && fileRefs.get(name).unlinked) res = null;
 			else res = underlyingFileSystem.open(name, create);
 			if(res == null) {fileRefsLock.release(); return null;}
-			
+
 			if(!fileRefs.containsKey(name)) fileRefs.put(name, new FileRefRecord());
 			fileRefs.get(name).count++;
-			
+
 			fileRefsLock.release();
 			return new UserOpenFile(res);
 		}
@@ -151,7 +151,7 @@ public class UserKernel extends ThreadedKernel {
 			fileRefsLock.release();
 			return res;
 		}
-		
+
 		private class UserOpenFile extends OpenFile
 		{
 			OpenFile underlyingFile;
@@ -198,22 +198,22 @@ public class UserKernel extends ThreadedKernel {
 				return underlyingFile.write(buf, offset, length);
 			}
 		}
-	    
-	    private class FileRefRecord
-	    {
-	    	public int count = 0;
-	    	public boolean unlinked = false;
-	    }
-	    
-	    public Map<String, FileRefRecord> fileRefs = new HashMap<String, FileRefRecord>();
-	    public Lock fileRefsLock = new Lock();
-    }
-    
-    public static UserFileSystem userFileSystem;
 
-    /** Globally accessible reference to the synchronized console. */
-    public static SynchConsole console;
+		private class FileRefRecord
+		{
+			public int count = 0;
+			public boolean unlinked = false;
+		}
 
-    // dummy variables to make javac smarter
-    private static Coff dummy1 = null;
+		public Map<String, FileRefRecord> fileRefs = new HashMap<String, FileRefRecord>();
+		public Lock fileRefsLock = new Lock();
+	}
+
+	public static UserFileSystem userFileSystem;
+
+	/** Globally accessible reference to the synchronized console. */
+	public static SynchConsole console;
+
+	// dummy variables to make javac smarter
+	private static Coff dummy1 = null;
 }

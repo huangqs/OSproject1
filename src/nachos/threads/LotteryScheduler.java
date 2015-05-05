@@ -30,145 +30,145 @@ import java.util.Iterator;
  * the maximum).
  */
 public class LotteryScheduler extends PriorityScheduler {
-    /**
-     * Allocate a new lottery scheduler.
-     */
-    public LotteryScheduler() {
-    }
-    
-    /**
-     * Allocate a new lottery thread queue.
-     *
-     * @param	transferPriority	<tt>true</tt> if this queue should
-     *					transfer tickets from waiting threads
-     *					to the owning thread.
-     * @return	a new lottery thread queue.
-     */
-    public ThreadQueue newThreadQueue(boolean transferPriority) {
-	// implement me
-	return new LotteryQueue(transferPriority);
-    }
+	/**
+	 * Allocate a new lottery scheduler.
+	 */
+	public LotteryScheduler() {
+	}
 
-    public void setPriority(KThread thread, int priority) {
-    	Lib.assertTrue(Machine.interrupt().disabled());
+	/**
+	 * Allocate a new lottery thread queue.
+	 *
+	 * @param	transferPriority	<tt>true</tt> if this queue should
+	 *					transfer tickets from waiting threads
+	 *					to the owning thread.
+	 * @return	a new lottery thread queue.
+	 */
+	public ThreadQueue newThreadQueue(boolean transferPriority) {
+		// implement me
+		return new LotteryQueue(transferPriority);
+	}
 
-    	Lib.assertTrue(priority >= 1);
+	public void setPriority(KThread thread, int priority) {
+		Lib.assertTrue(Machine.interrupt().disabled());
 
-    	getThreadState(thread).setPriority(priority);
-    }
+		Lib.assertTrue(priority >= 1);
 
-    public boolean increasePriority() {
-    	boolean intStatus = Machine.interrupt().disable();
+		getThreadState(thread).setPriority(priority);
+	}
 
-    	KThread thread = KThread.currentThread();
+	public boolean increasePriority() {
+		boolean intStatus = Machine.interrupt().disable();
 
-    	int priority = getPriority(thread);
-    	if (priority == Integer.MAX_VALUE)
-    		return false;
+		KThread thread = KThread.currentThread();
 
-    	setPriority(thread, priority+1);
+		int priority = getPriority(thread);
+		if (priority == Integer.MAX_VALUE)
+			return false;
 
-    	Machine.interrupt().restore(intStatus);
-    	return true;
-    }
+		setPriority(thread, priority+1);
 
-    public boolean decreasePriority() {
-    	boolean intStatus = Machine.interrupt().disable();
+		Machine.interrupt().restore(intStatus);
+		return true;
+	}
 
-    	KThread thread = KThread.currentThread();
+	public boolean decreasePriority() {
+		boolean intStatus = Machine.interrupt().disable();
 
-    	int priority = getPriority(thread);
-    	if (priority == 1)
-    		return false;
+		KThread thread = KThread.currentThread();
 
-    	setPriority(thread, priority-1);
+		int priority = getPriority(thread);
+		if (priority == 1)
+			return false;
 
-    	Machine.interrupt().restore(intStatus);
-    	return true;
-    }
+		setPriority(thread, priority-1);
 
-    protected LotteryThreadState getThreadState(KThread thread) {
-    	if (thread.schedulingState == null)
-    		thread.schedulingState = new LotteryThreadState(thread);
+		Machine.interrupt().restore(intStatus);
+		return true;
+	}
 
-    	return (LotteryThreadState) thread.schedulingState;
-    }
-    
-    protected class LotteryQueue extends PriorityQueue
-    {
-    	LotteryQueue() {
-    	}
-    	
-    	LotteryQueue(boolean transferPriority) {
-    		super(transferPriority);
-    	}
-    	
-    	@Override
-    	protected ThreadState pickNextThread() {
-    		if(waitQueue.isEmpty()) return null;
-    		
-    		int randNum = (int)(Math.random() * getTotalTickets());
+	protected LotteryThreadState getThreadState(KThread thread) {
+		if (thread.schedulingState == null)
+			thread.schedulingState = new LotteryThreadState(thread);
 
-    		for (ThreadState ts : waitQueue) {
-    			randNum -= ts.getEffectivePriority();
-    			if(randNum < 0) return ts;
-    		}
-    		
-    		Lib.assertNotReached("LotteryQueue.pickNextThread didn't pick a thread!");
-    		return null;
-    	}
-    	
-    	protected int getTotalTickets()
-    	{
-    		int res = 0;
-    		
-    		for (ThreadState ts : waitQueue) {
-    			res += ts.getEffectivePriority();
-    		}
-    		return res;
-    	}
-    	
-    	protected void donatePriority() {
-    		int newDonation = 0;
-    		
-    		if (transferPriority)
-    			newDonation = Math.max(newDonation , this.getTotalTickets());
-    		
-    		if (newDonation == donation)
-    			return;
+		return (LotteryThreadState) thread.schedulingState;
+	}
 
-    		donation = newDonation;
-    		if (this.resAccessing != null) {
-    			this.resAccessing.resources.put(this , donation);
-    			this.resAccessing.updatePriority();
-    		}
-    	}
-    }
-    
-    protected class LotteryThreadState extends ThreadState
-    {
-    	public LotteryThreadState() {
-   		}
-    	
-   		public LotteryThreadState(KThread thread) {
-   			super(thread);
-   		}
-   		
-    	protected void updatePriority() {
-    		int newEffectivePriority = originalPriority;
-    		if (!resources.isEmpty()) {
-    			for (Enumeration<PriorityQueue> queues = resources.keys(); 
-    					queues.hasMoreElements(); ) {
-    				PriorityQueue q = queues.nextElement();
-    				newEffectivePriority += q.donation;
-    			}
-    		}
-    		if (newEffectivePriority == priority)
-    			return;
-    		
-    		priority = newEffectivePriority;
-    		if (resourceWaitQueue != null)
-    			resourceWaitQueue.donatePriority();
-    	}
-    }
+	protected class LotteryQueue extends PriorityQueue
+	{
+		LotteryQueue() {
+		}
+
+		LotteryQueue(boolean transferPriority) {
+			super(transferPriority);
+		}
+
+		@Override
+		protected ThreadState pickNextThread() {
+			if(waitQueue.isEmpty()) return null;
+
+			int randNum = (int)(Math.random() * getTotalTickets());
+
+			for (ThreadState ts : waitQueue) {
+				randNum -= ts.getEffectivePriority();
+				if(randNum < 0) return ts;
+			}
+
+			Lib.assertNotReached("LotteryQueue.pickNextThread didn't pick a thread!");
+			return null;
+		}
+
+		protected int getTotalTickets()
+		{
+			int res = 0;
+
+			for (ThreadState ts : waitQueue) {
+				res += ts.getEffectivePriority();
+			}
+			return res;
+		}
+
+		protected void donatePriority() {
+			int newDonation = 0;
+
+			if (transferPriority)
+				newDonation = Math.max(newDonation , this.getTotalTickets());
+
+			if (newDonation == donation)
+				return;
+
+			donation = newDonation;
+			if (this.resAccessing != null) {
+				this.resAccessing.resources.put(this , donation);
+				this.resAccessing.updatePriority();
+			}
+		}
+	}
+
+	protected class LotteryThreadState extends ThreadState
+	{
+		public LotteryThreadState() {
+		}
+
+		public LotteryThreadState(KThread thread) {
+			super(thread);
+		}
+
+		protected void updatePriority() {
+			int newEffectivePriority = originalPriority;
+			if (!resources.isEmpty()) {
+				for (Enumeration<PriorityQueue> queues = resources.keys(); 
+						queues.hasMoreElements(); ) {
+					PriorityQueue q = queues.nextElement();
+					newEffectivePriority += q.donation;
+				}
+			}
+			if (newEffectivePriority == priority)
+				return;
+
+			priority = newEffectivePriority;
+			if (resourceWaitQueue != null)
+				resourceWaitQueue.donatePriority();
+		}
+	}
 }
