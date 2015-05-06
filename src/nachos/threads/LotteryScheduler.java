@@ -33,6 +33,201 @@ public class LotteryScheduler extends PriorityScheduler {
 	/**
 	 * Allocate a new lottery scheduler.
 	 */
+	
+	private static class lotteryTest1 implements Runnable {
+	
+		lotteryTest1(int which, Lock l){
+			this.l = l;
+			ip = which;
+		}
+		public void run(){
+			
+			LotteryScheduler schduler = (LotteryScheduler)(ThreadedKernel.scheduler);
+			int lottery = schduler.getThreadState(KThread.currentThread()).getPriority();
+			ThreadedKernel.alarm.waitUntil(2000);
+			l.acquire();
+			System.out.println(KThread.currentThread().getName() + " has priority " + lottery);
+			l.release();
+		}
+		
+		private Lock l;
+		private int ip;
+	}
+	
+	private static class lotteryTest2 implements Runnable {
+		
+		lotteryTest2(int which, Lock l){
+			this.l = l;
+			ip = which;
+		}
+		public void run(){
+			
+			LotteryScheduler schduler = (LotteryScheduler)(ThreadedKernel.scheduler);
+			schduler.getThreadState(KThread.currentThread()).print();
+					
+			ThreadedKernel.alarm.waitUntil(2000);
+			l.acquire();
+			schduler.getThreadState(KThread.currentThread()).print();
+			l.release();
+		}
+		
+		private Lock l;
+		private int ip;
+	}
+	
+private static class lotteryTest4 implements Runnable {
+		
+		lotteryTest4(int which, Lock l){
+			this.l = l;
+			ip = which;
+		}
+		public void run(){
+			
+			LotteryScheduler schduler = (LotteryScheduler)(ThreadedKernel.scheduler);
+			schduler.getThreadState(KThread.currentThread()).print();
+			Lock acquiredLock = new Lock();
+			
+			ThreadedKernel.alarm.waitUntil(2000);
+			
+			acquiredLock.acquire();
+			
+			if (ip == 5)
+			{
+				 
+				 KThread t = new KThread(new lotteryTest2(ip+1,acquiredLock)).setName("threads "+ String.valueOf(ip+1)+" ");
+			     schduler.getThreadState(t).setPriority((int)(Math.random() * 20 + 1));
+			     t.fork();
+			}
+			else
+			{
+				KThread t = new KThread(new lotteryTest4(ip+1,acquiredLock)).setName("threads "+ String.valueOf(ip+1)+" ");
+			     schduler.getThreadState(t).setPriority((int)(Math.random() * 20 + 1));
+			     t.fork();
+			}
+			
+			l.acquire();
+			schduler.getThreadState(KThread.currentThread()).print();
+			l.release();
+			
+			acquiredLock.release();
+			
+			schduler.getThreadState(KThread.currentThread()).print();
+		}
+		
+		private Lock l;
+		private int ip;
+	}
+	
+	
+	public static void selfTest()
+	{
+		KThread[] threads = new KThread[8];
+		Lock l = new Lock();
+		LotteryScheduler schduler = (LotteryScheduler)(ThreadedKernel.scheduler);
+		
+		System.out.println("-------- lottery test 1 ---------");
+		
+		for (int j = 1; j < 10; j++)
+		{
+		
+		System.out.println("round" + j);
+		
+		for(int i=0; i<8; i++)
+		{
+		     threads[i] = new KThread(new lotteryTest1(i,l)).setName("threads "+ String.valueOf(i)+" ");
+		     schduler.getThreadState(threads[i]).setPriority((int)(10 * i + 5));
+		     threads[i].fork();
+		}
+		
+		l.acquire();
+		ThreadedKernel.alarm.waitUntil(3000);
+		l.release();
+		
+		ThreadedKernel.alarm.waitUntil(30000);
+		}
+		
+       System.out.println("-------- lottery test 2 ---------");
+		
+		for (int j = 1; j < 3; j++)
+		{
+		
+		System.out.println("");
+		
+		for(int i=0; i<8; i++)
+		{
+		     threads[i] = new KThread(new lotteryTest2(i,l)).setName("threads "+ String.valueOf(i)+" ");
+		     schduler.getThreadState(threads[i]).setPriority((int)(Math.random() * 10 * i + 1));
+		     threads[i].fork();
+		}
+		
+		System.out.println("Before getting the lock");
+		schduler.getThreadState(KThread.currentThread()).print();
+		l.acquire();
+		ThreadedKernel.alarm.waitUntil(3000);
+		System.out.println("After getting the lock");
+		schduler.getThreadState(KThread.currentThread()).print();
+		l.release();
+		
+		ThreadedKernel.alarm.waitUntil(30000);
+		}
+		
+        System.out.println("-------- lottery test 3 ---------");
+		
+		for (int j = 1; j < 3; j++)
+		{
+		Lock[] ls = new Lock[8];
+		System.out.println("");
+		
+		for(int i=0; i<8; i++)
+		{
+			 ls[i] = new Lock();
+		     threads[i] = new KThread(new lotteryTest2(i,ls[i])).setName("threads "+ String.valueOf(i)+" ");
+		     schduler.getThreadState(threads[i]).setPriority((int)(Math.random() * 10 * i + 1));
+		     threads[i].fork();
+		}
+		
+		System.out.println("Before getting the lockes");
+		schduler.getThreadState(KThread.currentThread()).print();
+		for (int t=0; t<8; t++)
+		{
+		    ls[t].acquire();
+		}
+		ThreadedKernel.alarm.waitUntil(3000);
+		for (int t=0; t<8; t++)
+		{
+		System.out.println("Before releaving the lock" + String.valueOf(t));
+		schduler.getThreadState(KThread.currentThread()).print();
+		ls[t].release();
+		}
+		
+		ThreadedKernel.alarm.waitUntil(30000);
+		}
+		
+		System.out.println("-------- lottery test 4 ---------");
+		
+		for (int j = 0; j < 3; j++)
+		{
+		
+		System.out.println("");
+		
+        KThread thread = new KThread(new lotteryTest4(1,l)).setName("threads "+ String.valueOf(1)+" ");
+		schduler.getThreadState(thread).setPriority((int)(Math.random() * 10 + 1));
+		thread.fork();
+		
+		System.out.println("Before getting the lock");
+		schduler.getThreadState(KThread.currentThread()).print();
+		l.acquire();
+		for (int k = 0; k < 10; k++)
+		{
+		ThreadedKernel.alarm.waitUntil(3000);
+		schduler.getThreadState(KThread.currentThread()).print();
+		}
+		l.release();
+		
+		ThreadedKernel.alarm.waitUntil(30000);
+		}
+	}
+	
 	public LotteryScheduler() {
 	}
 
