@@ -12,9 +12,17 @@
 
 #include "syscall.h"
 
-int
-main()
+int main()
 {
-    halt();
+	char *pArgv[1];
+	char pc[3]={4,5,6};
+	pArgv[0]= pc;
+	int pid = exec("halt_test2.coff",1,pArgv);
+	int status;
+	int x=join(pid, &status);
+	printf("???");
+    int p = halt();
+	
+	printf("%d %d \n", x, status);
     /* not reached */
 }
